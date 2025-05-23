@@ -9,7 +9,10 @@ import (
 )
 
 // Terminal provides rendering utilities
-type Terminal struct{}
+type Terminal struct{
+	previousBuffer []string
+	lastSize       Size
+}
 
 func NewTerminal() *Terminal {
 	return &Terminal{}
@@ -17,13 +20,31 @@ func NewTerminal() *Terminal {
 
 func (t *Terminal) Render(component Component, size Size) {
 	lines := component.Render(size)
-	for _, line := range lines {
-		fmt.Println(line)
-	}
+	t.renderWithDiff(lines, size)
 }
 
 func (t *Terminal) Clear() {
 	fmt.Print("\033[H\033[2J")
+}
+
+// HideCursor hides the terminal cursor
+func (t *Terminal) HideCursor() {
+	fmt.Print("\033[?25l")
+}
+
+// ShowCursor shows the terminal cursor
+func (t *Terminal) ShowCursor() {
+	fmt.Print("\033[?25h")
+}
+
+// MoveCursor moves the cursor to a specific position (1-based coordinates)
+func (t *Terminal) MoveCursor(row, col int) {
+	fmt.Printf("\033[%d;%dH", row, col)
+}
+
+// MoveCursorHome moves the cursor to the top-left corner
+func (t *Terminal) MoveCursorHome() {
+	fmt.Print("\033[H")
 }
 
 // GetSize returns the current terminal dimensions
@@ -85,5 +106,64 @@ func (t *Terminal) RenderFullHeight(component Component, width int) {
 	}
 	size.Width = width
 	t.Render(component, size)
+}
+
+// renderWithDiff performs diff-based rendering to minimize screen updates
+func (t *Terminal) renderWithDiff(newLines []string, size Size) {
+	// If size changed or this is first render, clear screen and render everything
+	if t.lastSize.Width != size.Width || t.lastSize.Height != size.Height || t.previousBuffer == nil {
+		t.Clear()
+		t.MoveCursorHome()
+		for i, line := range newLines {
+			if i > 0 {
+				fmt.Print("\n")
+			}
+			fmt.Print(line)
+		}
+		t.previousBuffer = make([]string, len(newLines))
+		copy(t.previousBuffer, newLines)
+		t.lastSize = size
+		return
+	}
+
+	// Diff-based rendering: only update changed lines
+	maxLines := len(newLines)
+	if len(t.previousBuffer) > maxLines {
+		maxLines = len(t.previousBuffer)
+	}
+
+	for i := 0; i < maxLines; i++ {
+		var newLine, oldLine string
+		
+		if i < len(newLines) {
+			newLine = newLines[i]
+		}
+		if i < len(t.previousBuffer) {
+			oldLine = t.previousBuffer[i]
+		}
+
+		// Only update if line changed
+		if newLine != oldLine {
+			t.MoveCursor(i+1, 1) // Move to beginning of line (1-based coordinates)
+			
+			if newLine == "" {
+				// Clear the entire line
+				fmt.Print("\033[K")
+			} else {
+				// Print new content and clear rest of line
+				fmt.Print(newLine)
+				fmt.Print("\033[K")
+			}
+		}
+	}
+
+	// Update previous buffer
+	t.previousBuffer = make([]string, len(newLines))
+	copy(t.previousBuffer, newLines)
+}
+
+// ClearPreviousBuffer clears the stored previous buffer (useful for manual redraws)
+func (t *Terminal) ClearPreviousBuffer() {
+	t.previousBuffer = nil
 }
 

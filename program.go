@@ -1,0 +1,248 @@
+package trmnl
+
+import (
+	"context"
+	"time"
+)
+
+// Msg represents any message that can update the model
+type Msg interface{}
+
+// Cmd represents a command that can produce messages asynchronously
+type Cmd func() Msg
+
+// Sub represents a subscription that can send messages continuously
+type Sub func(ctx context.Context, send func(Msg))
+
+// Model represents the application state and behavior
+type Model interface {
+	// Init returns the initial model and any commands to run
+	Init() (Model, Cmd)
+	
+	// Update handles a message and returns updated model and commands
+	Update(msg Msg) (Model, Cmd)
+	
+	// View renders the current model to a component tree
+	View() Component
+	
+	// Subscriptions returns active subscriptions (optional)
+	Subscriptions() []Sub
+}
+
+// Program manages the Elm architecture runtime
+type Program struct {
+	model         Model
+	terminal      *Terminal
+	msgChan       chan Msg
+	quit          chan struct{}
+	ctx           context.Context
+	cancel        context.CancelFunc
+	subs          []Sub
+	hideCursor    bool
+	rawMode       bool
+	terminalState *TerminalState
+}
+
+// QuitMsg signals the program should exit
+type QuitMsg struct{}
+
+// NewProgram creates a new Elm architecture program
+func NewProgram(initialModel Model) *Program {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Program{
+		model:      initialModel,
+		terminal:   NewTerminal(),
+		msgChan:    make(chan Msg, 100),
+		quit:       make(chan struct{}),
+		ctx:        ctx,
+		cancel:     cancel,
+		hideCursor: true, // Default to hiding cursor for TUI apps
+		rawMode:    false, // Default to line-buffered input
+	}
+}
+
+// WithCursorHidden sets whether the cursor should be hidden during program execution
+func (p *Program) WithCursorHidden(hide bool) *Program {
+	p.hideCursor = hide
+	return p
+}
+
+// WithRawMode enables immediate character input without pressing Enter
+func (p *Program) WithRawMode(enable bool) *Program {
+	p.rawMode = enable
+	return p
+}
+
+// Send sends a message to the program
+func (p *Program) Send(msg Msg) {
+	select {
+	case p.msgChan <- msg:
+	case <-p.ctx.Done():
+	}
+}
+
+// Run starts the program and blocks until it exits
+func (p *Program) Run() error {
+	// Setup cursor visibility
+	if p.hideCursor {
+		p.terminal.HideCursor()
+		// Ensure cursor is restored on exit
+		defer p.terminal.ShowCursor()
+	}
+	
+	// Setup raw mode if enabled
+	if p.rawMode {
+		termState, err := enableRawMode()
+		if err != nil {
+			// If raw mode fails (e.g., not a real terminal), fall back to line mode
+			p.rawMode = false
+		} else {
+			p.terminalState = termState
+			// Ensure terminal state is restored on exit
+			defer p.terminalState.restore()
+		}
+	}
+	
+	// Initialize the model
+	var cmd Cmd
+	p.model, cmd = p.model.Init()
+	
+	// Execute initial command if any
+	if cmd != nil {
+		go func() {
+			if msg := cmd(); msg != nil {
+				p.Send(msg)
+			}
+		}()
+	}
+	
+	// Initial render
+	p.render()
+	
+	// Start input handling
+	go p.handleInput()
+	
+	// Start subscriptions
+	p.startSubscriptions()
+	
+	// Main message loop
+	for {
+		select {
+		case msg := <-p.msgChan:
+			// Handle quit message
+			if _, isQuit := msg.(QuitMsg); isQuit {
+				p.cancel()
+				return nil
+			}
+			
+			// Handle batch messages
+			if batchMsg, isBatch := msg.(BatchMsg); isBatch {
+				for _, batchedMsg := range batchMsg.Messages {
+					// Process each batched message synchronously
+					var newCmd Cmd
+					p.model, newCmd = p.model.Update(batchedMsg)
+					
+					// Execute command if any
+					if newCmd != nil {
+						go func() {
+							if cmdMsg := newCmd(); cmdMsg != nil {
+								p.Send(cmdMsg)
+							}
+						}()
+					}
+				}
+				// Re-render after all batch messages processed
+				p.render()
+				continue
+			}
+			
+			// Update model
+			var newCmd Cmd
+			p.model, newCmd = p.model.Update(msg)
+			
+			// Execute command if any
+			if newCmd != nil {
+				go func() {
+					if cmdMsg := newCmd(); cmdMsg != nil {
+						p.Send(cmdMsg)
+					}
+				}()
+			}
+			
+			// Re-render
+			p.render()
+			
+		case <-p.ctx.Done():
+			return nil
+		}
+	}
+}
+
+// render renders the current model to the terminal
+func (p *Program) render() {
+	component := p.model.View()
+	p.terminal.RenderResponsive(component)
+}
+
+// Quit creates a command that quits the program
+func Quit() Cmd {
+	return func() Msg {
+		return QuitMsg{}
+	}
+}
+
+// BatchMsg represents multiple messages to be processed
+type BatchMsg struct {
+	Messages []Msg
+}
+
+// Batch creates a command that sends multiple messages
+func Batch(messages ...Msg) Cmd {
+	return func() Msg {
+		return BatchMsg{Messages: messages}
+	}
+}
+
+// Delay creates a command that sends a message after a delay
+func Delay(duration time.Duration, msg Msg) Cmd {
+	return func() Msg {
+		time.Sleep(duration)
+		return msg
+	}
+}
+
+// Tick creates a command that sends a message after a duration
+func Tick(duration time.Duration, msgFunc func(time.Time) Msg) Cmd {
+	return func() Msg {
+		time.Sleep(duration)
+		return msgFunc(time.Now())
+	}
+}
+
+// startSubscriptions starts all subscriptions from the model
+func (p *Program) startSubscriptions() {
+	// Get subscriptions from model
+	p.subs = p.model.Subscriptions()
+	
+	// Start each subscription in its own goroutine
+	for _, sub := range p.subs {
+		go sub(p.ctx, p.Send)
+	}
+}
+
+// Every creates a subscription that sends messages at regular intervals
+func Every(duration time.Duration, msgFunc func(time.Time) Msg) Sub {
+	return func(ctx context.Context, send func(Msg)) {
+		ticker := time.NewTicker(duration)
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case t := <-ticker.C:
+				send(msgFunc(t))
+			case <-ctx.Done():
+				return
+			}
+		}
+	}
+}

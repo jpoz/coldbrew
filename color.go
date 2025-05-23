@@ -3,7 +3,7 @@ package trmnl
 import (
 	"regexp"
 	"strings"
-	"unicode/utf8"
+	"unicode"
 )
 
 // ColorInfo stores color information for a specific position range in a string
@@ -116,7 +116,81 @@ func VisualWidth(s string) int {
 	// Remove ANSI escape sequences
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	cleaned := ansiRegex.ReplaceAllString(s, "")
-	return utf8.RuneCountInString(cleaned)
+	
+	width := 0
+	for _, r := range cleaned {
+		width += RuneVisualWidth(r)
+	}
+	return width
+}
+
+// RuneVisualWidth returns the visual width of a single rune
+func RuneVisualWidth(r rune) int {
+	// Control characters and non-printable characters
+	if r < 32 || (r >= 0x7F && r < 0xA0) {
+		return 0
+	}
+	
+	// Common emoji ranges (these are typically 2 columns wide)
+	if isEmoji(r) {
+		return 2
+	}
+	
+	// East Asian Wide characters (2 columns)
+	if isEastAsianWide(r) {
+		return 2
+	}
+	
+	// Combining characters (0 columns)
+	if unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc) {
+		return 0
+	}
+	
+	// Default: most characters are 1 column
+	return 1
+}
+
+// isEmoji checks if a rune is likely an emoji
+func isEmoji(r rune) bool {
+	// Common emoji Unicode ranges
+	return (r >= 0x1F600 && r <= 0x1F64F) || // Emoticons
+		(r >= 0x1F300 && r <= 0x1F5FF) || // Misc Symbols and Pictographs
+		(r >= 0x1F680 && r <= 0x1F6FF) || // Transport and Map
+		(r >= 0x1F1E6 && r <= 0x1F1FF) || // Regional indicators
+		(r >= 0x2600 && r <= 0x26FF) ||   // Misc symbols
+		(r >= 0x2700 && r <= 0x27BF) ||   // Dingbats
+		(r >= 0xFE00 && r <= 0xFE0F) ||   // Variation selectors
+		r == 0x200D ||                     // Zero width joiner
+		(r >= 0x1F900 && r <= 0x1F9FF) || // Supplemental Symbols and Pictographs
+		(r >= 0x1FA70 && r <= 0x1FAFF)    // Symbols and Pictographs Extended-A
+}
+
+// isEastAsianWide checks if a rune is an East Asian wide character
+func isEastAsianWide(r rune) bool {
+	// Simplified check for East Asian wide characters
+	// Full implementation would use unicode/width package
+	return (r >= 0x1100 && r <= 0x115F) || // Hangul Jamo
+		(r >= 0x2E80 && r <= 0x2EFF) || // CJK Radicals Supplement
+		(r >= 0x2F00 && r <= 0x2FDF) || // Kangxi Radicals
+		(r >= 0x3000 && r <= 0x303F) || // CJK Symbols and Punctuation
+		(r >= 0x3040 && r <= 0x309F) || // Hiragana
+		(r >= 0x30A0 && r <= 0x30FF) || // Katakana
+		(r >= 0x3100 && r <= 0x312F) || // Bopomofo
+		(r >= 0x3130 && r <= 0x318F) || // Hangul Compatibility Jamo
+		(r >= 0x3190 && r <= 0x319F) || // Kanbun
+		(r >= 0x31A0 && r <= 0x31BF) || // Bopomofo Extended
+		(r >= 0x31C0 && r <= 0x31EF) || // CJK Strokes
+		(r >= 0x31F0 && r <= 0x31FF) || // Katakana Phonetic Extensions
+		(r >= 0x3200 && r <= 0x32FF) || // Enclosed CJK Letters and Months
+		(r >= 0x3300 && r <= 0x33FF) || // CJK Compatibility
+		(r >= 0x3400 && r <= 0x4DBF) || // CJK Unified Ideographs Extension A
+		(r >= 0x4E00 && r <= 0x9FFF) || // CJK Unified Ideographs
+		(r >= 0xA000 && r <= 0xA48F) || // Yi Syllables
+		(r >= 0xA490 && r <= 0xA4CF) || // Yi Radicals
+		(r >= 0xAC00 && r <= 0xD7AF) || // Hangul Syllables
+		(r >= 0xF900 && r <= 0xFAFF) || // CJK Compatibility Ideographs
+		(r >= 0xFE30 && r <= 0xFE4F) || // CJK Compatibility Forms
+		(r >= 0xFF00 && r <= 0xFFEF)    // Halfwidth and Fullwidth Forms
 }
 
 // TruncateVisual truncates a string to a specific visual width, preserving colors
@@ -125,15 +199,22 @@ func TruncateVisual(s string, width int) string {
 		return s
 	}
 	
-	// This is a simplified version - for full implementation we'd need to
-	// properly handle ANSI codes during truncation
+	// Remove ANSI escape sequences for width calculation
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	cleaned := ansiRegex.ReplaceAllString(s, "")
-	runes := []rune(cleaned)
 	
-	if len(runes) > width {
-		return string(runes[:width])
+	// Build result character by character, respecting visual width
+	var result strings.Builder
+	currentWidth := 0
+	
+	for _, r := range cleaned {
+		runeWidth := RuneVisualWidth(r)
+		if currentWidth + runeWidth > width {
+			break
+		}
+		result.WriteRune(r)
+		currentWidth += runeWidth
 	}
 	
-	return string(runes)
+	return result.String()
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jpoz/trmnl"
 )
@@ -62,6 +61,5 @@ func main() {
 	// Render to terminal using responsive methods
 	fmt.Println("Example 1: Full Terminal Width Layout")
 	fmt.Println(strings.Repeat("=", 80))
-	terminal.RenderResponsive(rootContainer)
-	time.Sleep(2 * time.Second)
+	terminal.RenderFullWidth(rootContainer, 30)
 }
