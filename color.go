@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // ColorInfo stores color information for a specific position range in a string
@@ -68,43 +70,44 @@ func (rb *RenderBuffer) applyColorsToLine(line string, colorMap ColorMap) string
 	runes := []rune(line)
 	var result strings.Builder
 	
-	i := 0
-	for i < len(runes) {
-		// Find if current position has color
+	visualPos := 0
+	runeIndex := 0
+	
+	for runeIndex < len(runes) {
+		// Find if current visual position has color
 		var currentColor Color = ColorDefault
 		for _, colorInfo := range colorMap {
-			if i >= colorInfo.Start && i < colorInfo.End {
+			if visualPos >= colorInfo.Start && visualPos < colorInfo.End {
 				currentColor = colorInfo.Color
 				break
 			}
 		}
 		
 		if currentColor != ColorDefault {
-			// Find the end of this color section
-			end := i + 1
-			for end < len(runes) {
-				stillInColor := false
-				for _, colorInfo := range colorMap {
-					if end >= colorInfo.Start && end < colorInfo.End && colorInfo.Color == currentColor {
-						stillInColor = true
-						break
-					}
-				}
-				if !stillInColor {
+			// Find the end of this color section by visual position
+			result.WriteString(string(currentColor))
+			colorEnd := -1
+			for _, colorInfo := range colorMap {
+				if visualPos >= colorInfo.Start && visualPos < colorInfo.End && colorInfo.Color == currentColor {
+					colorEnd = colorInfo.End
 					break
 				}
-				end++
 			}
 			
-			// Apply color to this section
-			result.WriteString(string(currentColor))
-			result.WriteString(string(runes[i:end]))
-			result.WriteString(string(ColorReset))
+			// Add runes until we reach the color end position
+			for runeIndex < len(runes) && visualPos < colorEnd {
+				r := runes[runeIndex]
+				result.WriteRune(r)
+				visualPos += runewidth.RuneWidth(r)
+				runeIndex++
+			}
 			
-			i = end
+			result.WriteString(string(ColorReset))
 		} else {
-			result.WriteRune(runes[i])
-			i++
+			r := runes[runeIndex]
+			result.WriteRune(r)
+			visualPos += runewidth.RuneWidth(r)
+			runeIndex++
 		}
 	}
 	
@@ -117,11 +120,7 @@ func VisualWidth(s string) int {
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	cleaned := ansiRegex.ReplaceAllString(s, "")
 	
-	width := 0
-	for _, r := range cleaned {
-		width += RuneVisualWidth(r)
-	}
-	return width
+	return runewidth.StringWidth(cleaned)
 }
 
 // RuneVisualWidth returns the visual width of a single rune
@@ -203,18 +202,5 @@ func TruncateVisual(s string, width int) string {
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	cleaned := ansiRegex.ReplaceAllString(s, "")
 	
-	// Build result character by character, respecting visual width
-	var result strings.Builder
-	currentWidth := 0
-	
-	for _, r := range cleaned {
-		runeWidth := RuneVisualWidth(r)
-		if currentWidth + runeWidth > width {
-			break
-		}
-		result.WriteRune(r)
-		currentWidth += runeWidth
-	}
-	
-	return result.String()
+	return runewidth.Truncate(cleaned, width, "")
 }

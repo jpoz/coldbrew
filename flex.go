@@ -1,6 +1,10 @@
 package trmnl
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/mattn/go-runewidth"
+)
 
 // FlexContainer implements flexbox-like layout
 type FlexContainer struct {
@@ -337,19 +341,51 @@ func (fc *FlexContainer) RenderToBuffer(size Size) *RenderBuffer {
 				continue
 			}
 
-			// Overlay child content onto parent buffer
-			resultRunes := []rune(buffer.Lines[y])
-			lineRunes := []rune(line)
-
-			for k, r := range lineRunes {
-				x := childX + k
-				if x >= 0 && x < len(resultRunes) {
-					resultRunes[x] = r
+			// Replace content in parent buffer at the correct visual position
+			parentLine := buffer.Lines[y]
+			parentRunes := []rune(parentLine)
+			
+			// Calculate where to insert the child line
+			insertPos := 0
+			currentVisualPos := 0
+			
+			// Find the character position that corresponds to childX visual position
+			for insertPos < len(parentRunes) && currentVisualPos < childX {
+				currentVisualPos += runewidth.RuneWidth(parentRunes[insertPos])
+				if currentVisualPos <= childX {
+					insertPos++
 				}
 			}
-			buffer.Lines[y] = string(resultRunes)
+			
+			// Convert child line to runes and calculate its visual width
+			childRunes := []rune(line)
+			childVisualWidth := runewidth.StringWidth(line)
+			
+			// Replace the section in parent buffer
+			if insertPos >= 0 && insertPos < len(parentRunes) {
+				// Calculate how many characters to replace based on visual width
+				replaceEnd := insertPos
+				replacedVisualWidth := 0
+				
+				for replaceEnd < len(parentRunes) && replacedVisualWidth < childVisualWidth {
+					replacedVisualWidth += runewidth.RuneWidth(parentRunes[replaceEnd])
+					replaceEnd++
+				}
+				
+				// Build new line: before + child + after
+				var newLine []rune
+				if insertPos > 0 {
+					newLine = append(newLine, parentRunes[:insertPos]...)
+				}
+				newLine = append(newLine, childRunes...)
+				if replaceEnd < len(parentRunes) {
+					newLine = append(newLine, parentRunes[replaceEnd:]...)
+				}
+				
+				buffer.Lines[y] = string(newLine)
+			}
 
-			// Merge color information
+			// Merge color information with visual position adjustment
 			for _, colorInfo := range childBuffer.ColorMaps[j] {
 				adjustedStart := childX + colorInfo.Start
 				adjustedEnd := childX + colorInfo.End

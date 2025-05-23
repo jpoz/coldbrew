@@ -2,7 +2,8 @@ package trmnl
 
 import (
 	"strings"
-	"unicode/utf8"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // Text is a simple text component
@@ -29,7 +30,7 @@ func (t *Text) GetMinSize() Size {
 	lines := strings.Split(t.Content, "\n")
 	maxWidth := 0
 	for _, line := range lines {
-		width := utf8.RuneCountInString(line)
+		width := runewidth.StringWidth(line)
 		if width > maxWidth {
 			maxWidth = width
 		}
@@ -126,10 +127,11 @@ func (t *Text) RenderToBuffer(size Size) *RenderBuffer {
 
 		// Truncate or pad line to fit content width
 		displayLine := line
-		if utf8.RuneCountInString(line) > contentWidth {
-			displayLine = string([]rune(line)[:contentWidth])
-		} else if utf8.RuneCountInString(line) < contentWidth {
-			displayLine = line + strings.Repeat(string(t.Style.BgChar), contentWidth-utf8.RuneCountInString(line))
+		lineWidth := runewidth.StringWidth(line)
+		if lineWidth > contentWidth {
+			displayLine = runewidth.Truncate(line, contentWidth, "")
+		} else if lineWidth < contentWidth {
+			displayLine = line + strings.Repeat(string(t.Style.BgChar), contentWidth-lineWidth)
 		}
 
 		// Replace the content portion of the result line
