@@ -4,18 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`trmnl` is a Go library for building terminal applications with flexbox-like layout systems. It provides a component-based architecture for creating complex terminal UIs with proper layout, styling, and rendering.
+`trmnl` is a Go library for building terminal applications with flexbox-like layout systems. It provides **full compatibility with Bubble Tea Models** while adding enhanced layout capabilities through string builder utilities. Any Bubble Tea Model can run directly in trmnl's Program without modification.
 
 ## Commands
 
 ### Building and Running
-- `go run examples/border/main.go` - Run the border layout example (demonstrates responsive rendering)
-- `go run examples/counter/main.go` - Run the counter example (demonstrates Elm architecture)
-- `go run examples/clock/main.go` - Run the clock example (demonstrates subscriptions)
-- `go run examples/async/main.go` - Run the async operations example (demonstrates commands)
-- `go run examples/cursor/main.go` - Run the cursor control example (demonstrates cursor management)
-- `go run examples/immediate/main.go` - Run the immediate input example (demonstrates raw mode)
-- `go run examples/simple-immediate/main.go` - Run simple immediate input test
+- `go run examples/simple/main.go` - Run basic bubbletea countdown example
+- `go run examples/bubbletea-demo/main.go` - Run bubbletea counter with trmnl layouts (spinner demo)
+- `go run examples/trmnl-subscriptions/main.go` - Run example showing trmnl's subscription system
+- `go run examples/long-essay/main.go` - Run long scrollable essay with dynamic content updates
+- `go run examples/key-test/main.go` - Test immediate key response with raw mode
 - `go build .` - Build the library
 - `go test ./...` - Run tests (when they exist)
 - `go mod tidy` - Clean up module dependencies
@@ -27,43 +25,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-### Elm Architecture (The Elm Architecture pattern)
-`trmnl` implements the Elm Architecture for interactive applications:
-- **Model** - Application state and behavior interface with `Init()`, `Update()`, `View()`, `Subscriptions()`
-- **Messages** - Events that update the model (keyboard input, timer ticks, async results)
-- **Commands** - Side effects that produce messages asynchronously (`Cmd` type)
-- **Subscriptions** - Continuous event streams (timers, external events)
-- **Program** - Runtime that manages the Model-Update-View cycle
+### Bubble Tea Compatibility
+`trmnl` is **fully compatible with Bubble Tea Models**:
+- **Model Interface** - Uses `tea.Model` interface directly (`Init()`, `Update()`, `View()`)
+- **Type Aliases** - `trmnl.Msg`, `trmnl.Cmd`, `trmnl.Model` are aliases for `tea.Msg`, `tea.Cmd`, `tea.Model`
+- **Enhanced Features** - Optional `TrmnlModel` interface adds `Subscriptions()` for advanced functionality
+- **String-based Rendering** - `View() string` works directly with trmnl's string-based rendering pipeline
 
 **Program Flow:**
-1. `Init()` creates initial model and optional command
-2. Input/subscriptions generate messages
-3. `Update(msg)` processes messages and returns new model + optional command  
-4. `View()` renders current model to component tree
-5. Terminal renders component tree to console
-6. Commands run asynchronously and send messages back
+1. `Init()` returns initial command (bubbletea standard)
+2. Input generates bubbletea messages
+3. `Update(msg)` processes messages and returns new model + optional command (bubbletea standard)
+4. `View()` renders current model to string (bubbletea standard)
+5. Terminal renders string to console with trmnl's enhanced capabilities
+6. Commands run asynchronously (bubbletea standard)
+7. Optional subscriptions provide continuous event streams (trmnl extension)
 
 ### Core Components
-- **Component Interface** (`component.go`) - Base interface for all renderable elements with `Render()`, `RenderToBuffer()`, `GetMinSize()`, `GetStyle()`
-- **Program** (`program.go`) - Elm architecture runtime
-  - `NewProgram(model)` - Create program with initial model
+- **Program** (`program.go`) - Bubbletea-compatible runtime
+  - `NewProgram(tea.Model)` - Create program with any bubbletea model
   - `Run()` - Start the Model-Update-View loop 
   - `Send(msg)` - Send message to program
   - `WithCursorHidden(bool)` - Configure cursor visibility (default: hidden)
   - `WithRawMode(bool)` - Enable immediate character input without Enter (default: false)
-  - Built-in commands: `Quit()`, `Delay()`, `Batch()`, `Tick()`
-  - Built-in subscriptions: `Every(duration, msgFunc)`
+  - Uses bubbletea commands: `tea.Quit`, `tea.Batch`, etc.
+  - Optional trmnl subscriptions: `Every(duration, msgFunc)` via `TrmnlModel` interface
 - **Terminal** (`terminal.go`) - Main rendering engine with responsive rendering capabilities
-  - `Render(component, size)` - Render with explicit size
-  - `RenderResponsive(component)` - Auto-detect and use full terminal size
-  - `RenderFullWidth(component, height)` - Use full terminal width with fixed height
-  - `RenderFullHeight(component, width)` - Use full terminal height with fixed width
+  - `RenderString(content)` - Render string content directly (primary method for bubbletea compatibility)
+  - `Render(component, size)` - Render component with explicit size (legacy)
+  - `RenderResponsive(component)` - Auto-detect and use full terminal size (legacy)
   - `GetSize()` - Detect current terminal dimensions
   - `HideCursor()` / `ShowCursor()` - Control cursor visibility
   - `MoveCursor(row, col)` / `MoveCursorHome()` - Cursor positioning
-- **RenderBuffer** (`color.go`) - Efficient rendering system that separates content from color information
-- **Text Component** (`text.go`) - Basic text rendering with styling support
-- **FlexContainer** (`flex.go`) - Flexbox layout implementation with direction, justify, align properties
+- **String Builders** (`builders.go`) - Utilities for creating layouts with strings (primary for bubbletea compatibility)
+  - `BuildBorder(content, title)` - Create bordered text blocks
+  - `BuildRoundedBorder(content, title)` - Create rounded bordered text blocks
+  - `BuildFlex(direction, items...)` - Create flexible layouts combining multiple content blocks
+  - `BuildCenter(content, width)` - Center content within specified width
+  - `BuildPadding(content, padding)` - Add padding around content
+  - `BuildProgress(current, total, width, title)` - Create progress bar displays
+- **Component System** (legacy, maintained for internal use)
+  - **RenderBuffer** (`color.go`) - Efficient rendering system that separates content from color information
+  - **Text Component** (`text.go`) - Basic text rendering with styling support
+  - **FlexContainer** (`flex.go`) - Flexbox layout implementation with direction, justify, align properties
 
 ### Type System
 - **Style Types** (`types.go`) - Colors, layout enums (Row/Column, JustifyStart/Center/SpaceBetween, etc.), Box model
@@ -90,6 +94,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Ctrl combinations (Ctrl+C, Ctrl+D)
   - Automatic terminal state restoration
   - Graceful fallback to line mode if raw mode unavailable
+  - **Enable with**: `program.WithRawMode(true)` - Required for interactive examples
 
 ## File Organization
 - Root package contains core library components

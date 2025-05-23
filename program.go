@@ -3,35 +3,29 @@ package trmnl
 import (
 	"context"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Msg represents any message that can update the model
-type Msg interface{}
-
-// Cmd represents a command that can produce messages asynchronously
-type Cmd func() Msg
+// Type aliases for bubbletea compatibility
+type Msg = tea.Msg
+type Cmd = tea.Cmd
+type Model = tea.Model
 
 // Sub represents a subscription that can send messages continuously
 type Sub func(ctx context.Context, send func(Msg))
 
-// Model represents the application state and behavior
-type Model interface {
-	// Init returns the initial model and any commands to run
-	Init() (Model, Cmd)
-	
-	// Update handles a message and returns updated model and commands
-	Update(msg Msg) (Model, Cmd)
-	
-	// View renders the current model to a component tree
-	View() Component
-	
+// TrmnlModel extends tea.Model with subscriptions for advanced functionality
+type TrmnlModel interface {
+	tea.Model
+
 	// Subscriptions returns active subscriptions (optional)
 	Subscriptions() []Sub
 }
 
 // Program manages the Elm architecture runtime
 type Program struct {
-	model         Model
+	model         tea.Model
 	terminal      *Terminal
 	msgChan       chan Msg
 	quit          chan struct{}
@@ -47,7 +41,7 @@ type Program struct {
 type QuitMsg struct{}
 
 // NewProgram creates a new Elm architecture program
-func NewProgram(initialModel Model) *Program {
+func NewProgram(initialModel tea.Model) *Program {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Program{
 		model:      initialModel,
@@ -56,7 +50,7 @@ func NewProgram(initialModel Model) *Program {
 		quit:       make(chan struct{}),
 		ctx:        ctx,
 		cancel:     cancel,
-		hideCursor: true, // Default to hiding cursor for TUI apps
+		hideCursor: true,  // Default to hiding cursor for TUI apps
 		rawMode:    false, // Default to line-buffered input
 	}
 }
@@ -89,7 +83,7 @@ func (p *Program) Run() error {
 		// Ensure cursor is restored on exit
 		defer p.terminal.ShowCursor()
 	}
-	
+
 	// Setup raw mode if enabled
 	if p.rawMode {
 		termState, err := enableRawMode()
@@ -102,11 +96,10 @@ func (p *Program) Run() error {
 			defer p.terminalState.restore()
 		}
 	}
-	
+
 	// Initialize the model
-	var cmd Cmd
-	p.model, cmd = p.model.Init()
-	
+	cmd := p.model.Init()
+
 	// Execute initial command if any
 	if cmd != nil {
 		go func() {
@@ -115,16 +108,16 @@ func (p *Program) Run() error {
 			}
 		}()
 	}
-	
+
 	// Initial render
 	p.render()
-	
+
 	// Start input handling
 	go p.handleInput()
-	
+
 	// Start subscriptions
 	p.startSubscriptions()
-	
+
 	// Main message loop
 	for {
 		select {
@@ -134,14 +127,14 @@ func (p *Program) Run() error {
 				p.cancel()
 				return nil
 			}
-			
+
 			// Handle batch messages
 			if batchMsg, isBatch := msg.(BatchMsg); isBatch {
 				for _, batchedMsg := range batchMsg.Messages {
 					// Process each batched message synchronously
-					var newCmd Cmd
-					p.model, newCmd = p.model.Update(batchedMsg)
-					
+					newModel, newCmd := p.model.Update(batchedMsg)
+					p.model = newModel
+
 					// Execute command if any
 					if newCmd != nil {
 						go func() {
@@ -155,11 +148,11 @@ func (p *Program) Run() error {
 				p.render()
 				continue
 			}
-			
+
 			// Update model
-			var newCmd Cmd
-			p.model, newCmd = p.model.Update(msg)
-			
+			newModel, newCmd := p.model.Update(msg)
+			p.model = newModel
+
 			// Execute command if any
 			if newCmd != nil {
 				go func() {
@@ -168,10 +161,10 @@ func (p *Program) Run() error {
 					}
 				}()
 			}
-			
+
 			// Re-render
 			p.render()
-			
+
 		case <-p.ctx.Done():
 			return nil
 		}
@@ -180,8 +173,8 @@ func (p *Program) Run() error {
 
 // render renders the current model to the terminal
 func (p *Program) render() {
-	component := p.model.View()
-	p.terminal.RenderResponsive(component)
+	viewString := p.model.View()
+	p.terminal.RenderString(viewString)
 }
 
 // Quit creates a command that quits the program
@@ -219,14 +212,16 @@ func Tick(duration time.Duration, msgFunc func(time.Time) Msg) Cmd {
 	}
 }
 
-// startSubscriptions starts all subscriptions from the model
+// startSubscriptions starts all subscriptions from the model if it supports them
 func (p *Program) startSubscriptions() {
-	// Get subscriptions from model
-	p.subs = p.model.Subscriptions()
-	
-	// Start each subscription in its own goroutine
-	for _, sub := range p.subs {
-		go sub(p.ctx, p.Send)
+	// Check if model supports subscriptions
+	if trmnlModel, ok := p.model.(TrmnlModel); ok {
+		p.subs = trmnlModel.Subscriptions()
+
+		// Start each subscription in its own goroutine
+		for _, sub := range p.subs {
+			go sub(p.ctx, p.Send)
+		}
 	}
 }
 
@@ -235,7 +230,7 @@ func Every(duration time.Duration, msgFunc func(time.Time) Msg) Sub {
 	return func(ctx context.Context, send func(Msg)) {
 		ticker := time.NewTicker(duration)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case t := <-ticker.C:
@@ -246,3 +241,4 @@ func Every(duration time.Duration, msgFunc func(time.Time) Msg) Sub {
 		}
 	}
 }
+
