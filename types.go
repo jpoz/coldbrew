@@ -13,7 +13,7 @@ const (
 	ColorMagenta Color = "\033[35m"
 	ColorCyan    Color = "\033[36m"
 	ColorWhite   Color = "\033[37m"
-	
+
 	// Bright colors
 	ColorBrightBlack   Color = "\033[90m"
 	ColorBrightRed     Color = "\033[91m"
@@ -23,7 +23,7 @@ const (
 	ColorBrightMagenta Color = "\033[95m"
 	ColorBrightCyan    Color = "\033[96m"
 	ColorBrightWhite   Color = "\033[97m"
-	
+
 	// Color reset
 	ColorReset Color = "\033[0m"
 )
@@ -82,3 +82,4 @@ type Style struct {
 	Margin        Box
 	BgChar        rune
 }
+

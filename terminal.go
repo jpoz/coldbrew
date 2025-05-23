@@ -9,7 +9,7 @@ import (
 )
 
 // Terminal provides rendering utilities
-type Terminal struct{
+type Terminal struct {
 	previousBuffer []string
 	lastSize       Size
 }
@@ -134,7 +134,7 @@ func (t *Terminal) renderWithDiff(newLines []string, size Size) {
 
 	for i := 0; i < maxLines; i++ {
 		var newLine, oldLine string
-		
+
 		if i < len(newLines) {
 			newLine = newLines[i]
 		}
@@ -145,7 +145,7 @@ func (t *Terminal) renderWithDiff(newLines []string, size Size) {
 		// Only update if line changed
 		if newLine != oldLine {
 			t.MoveCursor(i+1, 1) // Move to beginning of line (1-based coordinates)
-			
+
 			if newLine == "" {
 				// Clear the entire line
 				fmt.Print("\033[K")
@@ -166,4 +166,3 @@ func (t *Terminal) renderWithDiff(newLines []string, size Size) {
 func (t *Terminal) ClearPreviousBuffer() {
 	t.previousBuffer = nil
 }
-

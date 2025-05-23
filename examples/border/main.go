@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/jpoz/trmnl"
 )
 
@@ -24,7 +21,7 @@ func main() {
 	sidebar.Style.BorderColor = trmnl.ColorGreen
 	sidebar.Style.Padding = trmnl.Box{Top: 1, Right: 1, Bottom: 1, Left: 1}
 
-	main := trmnl.NewText("Main Content Area\nThis is the main content\nwith multiple lines\nof text content.")
+	main := trmnl.NewText("Main Content Area. This is the main content, with a long line to show how what works also with with multiple lines\nof text content.")
 	main.Style.Border = true
 	main.Style.RoundedBorder = true
 	main.Style.BorderColor = trmnl.ColorCyan
@@ -58,8 +55,5 @@ func main() {
 		AddChild(footer).
 		SetFlexGrow(bodyContainer, 1) // Body takes extra vertical space
 
-	// Render to terminal using responsive methods
-	fmt.Println("Example 1: Full Terminal Width Layout")
-	fmt.Println(strings.Repeat("=", 80))
 	terminal.RenderFullWidth(rootContainer, 30)
 }
