@@ -122,8 +122,12 @@ func (p *Program) Run() error {
 	for {
 		select {
 		case msg := <-p.msgChan:
-			// Handle quit message
+			// Handle quit messages - both tea.Quit and custom QuitMsg
 			if _, isQuit := msg.(QuitMsg); isQuit {
+				p.cancel()
+				return nil
+			}
+			if _, isTeaQuit := msg.(tea.QuitMsg); isTeaQuit {
 				p.cancel()
 				return nil
 			}

@@ -14,6 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `go run examples/trmnl-subscriptions/main.go` - Run example showing trmnl's subscription system
 - `go run examples/long-essay/main.go` - Run long scrollable essay with dynamic content updates
 - `go run examples/key-test/main.go` - Test immediate key response with raw mode
+- `go run examples/quit-test/main.go` - Test tea.Quit command functionality
+- `go run examples/simple-quit/main.go` - Simple tea.Quit test
 - `go build .` - Build the library
 - `go test ./...` - Run tests (when they exist)
 - `go mod tidy` - Clean up module dependencies
@@ -48,7 +50,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `Send(msg)` - Send message to program
   - `WithCursorHidden(bool)` - Configure cursor visibility (default: hidden)
   - `WithRawMode(bool)` - Enable immediate character input without Enter (default: false)
-  - Uses bubbletea commands: `tea.Quit`, `tea.Batch`, etc.
+  - **Full bubbletea command support**: `tea.Quit`, `tea.Batch`, etc. work exactly as expected
+  - **Quit handling**: Responds to both `tea.Quit` commands and `tea.QuitMsg` messages automatically
   - Optional trmnl subscriptions: `Every(duration, msgFunc)` via `TrmnlModel` interface
 - **Terminal** (`terminal.go`) - Main rendering engine with responsive rendering capabilities
   - `RenderString(content)` - Render string content directly (primary method for bubbletea compatibility)
