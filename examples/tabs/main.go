@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jpoz/trmnl"
+	brew "github.com/jpoz/coldbrew"
 )
 
 type model struct {
@@ -94,7 +94,7 @@ func main() {
 	tabs := []string{"Lip Gloss", "Blush", "Eye Shadow", "Mascara", "Foundation"}
 	tabContent := []string{"Lip Gloss Tab", "Blush Tab", "Eye Shadow Tab", "Mascara Tab", "Foundation Tab"}
 	m := model{Tabs: tabs, TabContent: tabContent}
-	if err := trmnl.NewProgram(m).WithRawMode(true).Run(); err != nil {
+	if err := brew.NewProgram(m).WithRawMode(true).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}

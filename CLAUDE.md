@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`trmnl` is a Go library for building terminal applications with flexbox-like layout systems. It provides **full compatibility with Bubble Tea Models** while adding enhanced layout capabilities through string builder utilities. Any Bubble Tea Model can run directly in trmnl's Program without modification.
+`coldbrew` is a Go library for building terminal applications with flexbox-like layout systems. It provides **full compatibility with Bubble Tea Models** while adding enhanced layout capabilities through string builder utilities. Any Bubble Tea Model can run directly in coldbrew's Program without modification.
 
 ## Commands
 
 ### Building and Running
 - `go run examples/simple/main.go` - Run basic bubbletea countdown example
-- `go run examples/bubbletea-demo/main.go` - Run bubbletea counter with trmnl layouts (spinner demo)
-- `go run examples/trmnl-subscriptions/main.go` - Run example showing trmnl's subscription system
+- `go run examples/bubbletea-demo/main.go` - Run bubbletea counter with coldbrew layouts (spinner demo)
+- `go run examples/coldbrew-subscriptions/main.go` - Run example showing coldbrew's subscription system
 - `go run examples/long-essay/main.go` - Run long scrollable essay with dynamic content updates
 - `go run examples/key-test/main.go` - Test immediate key response with raw mode
 - `go run examples/quit-test/main.go` - Test tea.Quit command functionality
@@ -28,20 +28,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture
 
 ### Bubble Tea Compatibility
-`trmnl` is **fully compatible with Bubble Tea Models**:
+`coldbrew` is **fully compatible with Bubble Tea Models**:
 - **Model Interface** - Uses `tea.Model` interface directly (`Init()`, `Update()`, `View()`)
-- **Type Aliases** - `trmnl.Msg`, `trmnl.Cmd`, `trmnl.Model` are aliases for `tea.Msg`, `tea.Cmd`, `tea.Model`
-- **Enhanced Features** - Optional `TrmnlModel` interface adds `Subscriptions()` for advanced functionality
-- **String-based Rendering** - `View() string` works directly with trmnl's string-based rendering pipeline
+- **Type Aliases** - `coldbrew.Msg`, `coldbrew.Cmd`, `coldbrew.Model` are aliases for `tea.Msg`, `tea.Cmd`, `tea.Model`
+- **Enhanced Features** - Optional `ColdbrewModel` interface adds `Subscriptions()` for advanced functionality
+- **String-based Rendering** - `View() string` works directly with coldbrew's string-based rendering pipeline
 
 **Program Flow:**
 1. `Init()` returns initial command (bubbletea standard)
 2. Input generates bubbletea messages
 3. `Update(msg)` processes messages and returns new model + optional command (bubbletea standard)
 4. `View()` renders current model to string (bubbletea standard)
-5. Terminal renders string to console with trmnl's enhanced capabilities
+5. Terminal renders string to console with coldbrew's enhanced capabilities
 6. Commands run asynchronously (bubbletea standard)
-7. Optional subscriptions provide continuous event streams (trmnl extension)
+7. Optional subscriptions provide continuous event streams (coldbrew extension)
 
 ### Core Components
 - **Program** (`program.go`) - Bubbletea-compatible runtime
@@ -52,7 +52,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `WithRawMode(bool)` - Enable immediate character input without Enter (default: false)
   - **Full bubbletea command support**: `tea.Quit`, `tea.Batch`, etc. work exactly as expected
   - **Quit handling**: Responds to both `tea.Quit` commands and `tea.QuitMsg` messages automatically
-  - Optional trmnl subscriptions: `Every(duration, msgFunc)` via `TrmnlModel` interface
+  - Optional coldbrew subscriptions: `Every(duration, msgFunc)` via `ColdbrewModel` interface
 - **Terminal** (`terminal.go`) - Main rendering engine with responsive rendering capabilities
   - `RenderString(content)` - Render string content directly (primary method for bubbletea compatibility)
   - `Render(component, size)` - Render component with explicit size (legacy)

@@ -1,4 +1,4 @@
-package trmnl
+package brew
 
 import (
 	"context"
@@ -15,8 +15,8 @@ type Model = tea.Model
 // Sub represents a subscription that can send messages continuously
 type Sub func(ctx context.Context, send func(Msg))
 
-// TrmnlModel extends tea.Model with subscriptions for advanced functionality
-type TrmnlModel interface {
+// ColdbrewModel extends tea.Model with subscriptions for advanced functionality
+type ColdbrewModel interface {
 	tea.Model
 
 	// Subscriptions returns active subscriptions (optional)
@@ -219,8 +219,8 @@ func Tick(duration time.Duration, msgFunc func(time.Time) Msg) Cmd {
 // startSubscriptions starts all subscriptions from the model if it supports them
 func (p *Program) startSubscriptions() {
 	// Check if model supports subscriptions
-	if trmnlModel, ok := p.model.(TrmnlModel); ok {
-		p.subs = trmnlModel.Subscriptions()
+	if coldbrewModel, ok := p.model.(ColdbrewModel); ok {
+		p.subs = coldbrewModel.Subscriptions()
 
 		// Start each subscription in its own goroutine
 		for _, sub := range p.subs {

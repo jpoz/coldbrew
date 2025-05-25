@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jpoz/trmnl"
+	brew "github.com/jpoz/coldbrew"
 )
 
 type errMsg error
@@ -66,7 +66,7 @@ func (m model) View() string {
 }
 
 func main() {
-	p := trmnl.NewProgram(initialModel()).WithRawMode(true)
+	p := brew.NewProgram(initialModel()).WithRawMode(true)
 	if err := p.Run(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
