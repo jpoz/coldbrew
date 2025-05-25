@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/jpoz/trmnl"
+	brew "github.com/jpoz/coldbrew"
 )
 
 // QuitTestModel tests different quit methods
@@ -28,7 +28,7 @@ func (m QuitTestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit // This should exit the program
 		case "x":
 			m.Message = "Sending custom QuitMsg..."
-			return m, func() tea.Msg { return trmnl.QuitMsg{} } // Custom quit
+			return m, func() tea.Msg { return brew.QuitMsg{} } // Custom quit
 		case "ctrl+c":
 			m.Message = "Sending ctrl+c tea.Quit..."
 			return m, tea.Quit
@@ -38,7 +38,7 @@ func (m QuitTestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.QuitMsg:
 		m.Message = "Received tea.QuitMsg - should quit now!"
 		return m, nil
-	case trmnl.QuitMsg:
+	case brew.QuitMsg:
 		m.Message = "Received custom QuitMsg - should quit now!"
 		return m, nil
 	}
@@ -73,7 +73,7 @@ func main() {
 	fmt.Scanln(&input)
 	
 	model := QuitTestModel{Message: "Press q, x, or ctrl+c to test quit methods"}
-	program := trmnl.NewProgram(model).WithRawMode(true)
+	program := brew.NewProgram(model).WithRawMode(true)
 	
 	if err := program.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)

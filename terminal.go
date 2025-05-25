@@ -1,4 +1,4 @@
-package trmnl
+package brew
 
 import (
 	"fmt"

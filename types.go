@@ -1,4 +1,4 @@
-package trmnl
+package brew
 
 // Color represents terminal colors using ANSI escape codes
 type Color string

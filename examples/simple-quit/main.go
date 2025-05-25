@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/jpoz/trmnl"
+	brew "github.com/jpoz/coldbrew"
 )
 
 type model struct {
@@ -34,7 +34,7 @@ func (m model) View() string {
 
 func main() {
 	m := model{message: "Press any key..."}
-	p := trmnl.NewProgram(m).WithRawMode(true)
+	p := brew.NewProgram(m).WithRawMode(true)
 	
 	if err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)

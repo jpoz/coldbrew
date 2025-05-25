@@ -9,11 +9,11 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	trmnl "github.com/jpoz/trmnl"
+	brew "github.com/jpoz/coldbrew"
 )
 
 func main() {
-	p := trmnl.NewProgram(initialModel())
+	p := brew.NewProgram(initialModel())
 	if err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
