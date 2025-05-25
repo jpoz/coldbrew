@@ -1,5 +1,9 @@
 # Cold Brew
 
+<p>
+<img src="media/coldbrew.png" alt="Cold Brew" height="300">
+</p>
+
 A alternative way to render [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI applications.
 Cold Brew does not user an alternate buffer and has no limit to how tall the TUI application can
 render. This allows the output from the TUI to stay in the history of the terminal buffer after
