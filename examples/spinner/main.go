@@ -66,7 +66,7 @@ func (m model) View() string {
 }
 
 func main() {
-	p := trmnl.NewProgram(initialModel())
+	p := trmnl.NewProgram(initialModel()).WithRawMode(true)
 	if err := p.Run(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
