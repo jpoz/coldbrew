@@ -18,11 +18,6 @@ func NewTerminal() *Terminal {
 	return &Terminal{}
 }
 
-func (t *Terminal) Render(component Component, size Size) {
-	lines := component.Render(size)
-	t.renderWithDiff(lines, size)
-}
-
 func (t *Terminal) Clear() {
 	fmt.Print("\033[H\033[2J")
 }
@@ -76,63 +71,18 @@ func (t *Terminal) GetSize() (Size, error) {
 	return Size{Width: width, Height: height}, nil
 }
 
-// RenderResponsive renders the component using the full terminal size
-func (t *Terminal) RenderResponsive(component Component) {
-	size, err := t.GetSize()
-	if err != nil {
-		// Fallback to default size
-		size = Size{Width: 80, Height: 24}
-	}
-	t.Render(component, size)
-}
-
-// RenderFullWidth renders the component using the full terminal width with specified height
-func (t *Terminal) RenderFullWidth(component Component, height int) {
-	size, err := t.GetSize()
-	if err != nil {
-		// Fallback to default width
-		size.Width = 80
-	}
-	size.Height = height
-	t.Render(component, size)
-}
-
-// RenderFullHeight renders the component using the full terminal height with specified width
-func (t *Terminal) RenderFullHeight(component Component, width int) {
-	size, err := t.GetSize()
-	if err != nil {
-		// Fallback to default height
-		size.Height = 24
-	}
-	size.Width = width
-	t.Render(component, size)
+// RenderString renders a string directly to the terminal
+func (t *Terminal) RenderString(content string) {
+	lines := strings.Split(content, "\n")
+	t.renderWithDiff(lines)
 }
 
 // renderWithDiff performs diff-based rendering to minimize screen updates
-func (t *Terminal) renderWithDiff(newLines []string, size Size) {
-	// If size changed or this is first render, clear screen and render everything
-	if t.lastSize.Width != size.Width || t.lastSize.Height != size.Height || t.previousBuffer == nil {
-		t.Clear()
-		t.MoveCursorHome()
-		for i, line := range newLines {
-			if i > 0 {
-				fmt.Print("\n")
-			}
-			fmt.Print(line)
-		}
-		t.previousBuffer = make([]string, len(newLines))
-		copy(t.previousBuffer, newLines)
-		t.lastSize = size
-		return
-	}
-
+func (t *Terminal) renderWithDiff(newLines []string) {
 	// Diff-based rendering: only update changed lines
-	maxLines := len(newLines)
-	if len(t.previousBuffer) > maxLines {
-		maxLines = len(t.previousBuffer)
-	}
+	maxLines := max(len(newLines), len(t.previousBuffer))
 
-	for i := 0; i < maxLines; i++ {
+	for i := range maxLines {
 		var newLine, oldLine string
 
 		if i < len(newLines) {
