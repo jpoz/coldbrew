@@ -26,6 +26,7 @@ const (
 	KeySpace      = tea.KeySpace
 	KeyCtrlC      = tea.KeyCtrlC
 	KeyCtrlD      = tea.KeyCtrlD
+	KeyCtrlJ      = tea.KeyCtrlJ
 	KeyF1         = tea.KeyF1
 	KeyF2         = tea.KeyF2
 	KeyF3         = tea.KeyF3
@@ -99,7 +100,9 @@ func (p *Program) detectSimpleKey(b byte) *tea.KeyMsg {
 		key = tea.Key{Type: tea.KeyCtrlC}
 	case 4: // Ctrl+D
 		key = tea.Key{Type: tea.KeyCtrlD}
-	case 13: // Enter
+	case 10: // Ctrl+J (Line Feed)
+		key = tea.Key{Type: tea.KeyCtrlJ}
+	case 13: // Enter (Carriage Return)
 		key = tea.Key{Type: tea.KeyEnter}
 	case 27: // Escape - this is simplified, real escape sequences are complex
 		key = tea.Key{Type: tea.KeyEsc}
@@ -165,7 +168,9 @@ func (p *Program) handleSimpleRawInput() {
 				key = tea.Key{Type: tea.KeyCtrlC}
 			case 4: // Ctrl+D
 				key = tea.Key{Type: tea.KeyCtrlD}
-			case 13: // Enter
+			case 10: // Ctrl+J (Line Feed)
+				key = tea.Key{Type: tea.KeyCtrlJ}
+			case 13: // Enter (Carriage Return)
 				key = tea.Key{Type: tea.KeyEnter}
 			case 27: // Escape - try to read escape sequence
 				escKey := p.readEscapeSequence()

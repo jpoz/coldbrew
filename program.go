@@ -2,6 +2,7 @@ package brew
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -81,7 +82,12 @@ func (p *Program) Run() error {
 	if p.hideCursor {
 		p.terminal.HideCursor()
 		// Ensure cursor is restored on exit
-		defer p.terminal.ShowCursor()
+		defer func() {
+			p.terminal.ExitAltScreen()
+			p.terminal.ShowCursor()
+			// Print a final newline to position cursor properly for shell prompt
+			fmt.Print("\n")
+		}()
 	}
 
 	// Setup raw mode if enabled

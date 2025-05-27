@@ -12,6 +12,7 @@ import (
 type Terminal struct {
 	previousBuffer []string
 	lastSize       Size
+	altScreen      bool
 }
 
 func NewTerminal() *Terminal {
@@ -40,6 +41,22 @@ func (t *Terminal) MoveCursor(row, col int) {
 // MoveCursorHome moves the cursor to the top-left corner
 func (t *Terminal) MoveCursorHome() {
 	fmt.Print("\033[H")
+}
+
+// EnterAltScreen enters the alternate screen buffer
+func (t *Terminal) EnterAltScreen() {
+	if !t.altScreen {
+		fmt.Print("\033[?1049h") // Enter alternate screen
+		t.altScreen = true
+	}
+}
+
+// ExitAltScreen exits the alternate screen buffer
+func (t *Terminal) ExitAltScreen() {
+	if t.altScreen {
+		fmt.Print("\033[?1049l") // Exit alternate screen
+		t.altScreen = false
+	}
 }
 
 // GetSize returns the current terminal dimensions
@@ -71,45 +88,23 @@ func (t *Terminal) GetSize() (Size, error) {
 	return Size{Width: width, Height: height}, nil
 }
 
-// RenderString renders a string directly to the terminal
+// RenderString renders a string directly to the terminal using alternate screen buffer
 func (t *Terminal) RenderString(content string) {
-	lines := strings.Split(content, "\n")
-	t.renderWithDiff(lines)
-}
-
-// renderWithDiff performs diff-based rendering to minimize screen updates
-func (t *Terminal) renderWithDiff(newLines []string) {
-	// Diff-based rendering: only update changed lines
-	maxLines := max(len(newLines), len(t.previousBuffer))
-
-	for i := range maxLines {
-		var newLine, oldLine string
-
-		if i < len(newLines) {
-			newLine = newLines[i]
-		}
-		if i < len(t.previousBuffer) {
-			oldLine = t.previousBuffer[i]
-		}
-
-		// Only update if line changed
-		if newLine != oldLine {
-			t.MoveCursor(i+1, 1) // Move to beginning of line (1-based coordinates)
-
-			if newLine == "" {
-				// Clear the entire line
-				fmt.Print("\033[K")
-			} else {
-				// Print new content and clear rest of line
-				fmt.Print(newLine)
-				fmt.Print("\033[K")
-			}
-		}
+	// Enter alternate screen on first render
+	if len(t.previousBuffer) == 0 {
+		t.EnterAltScreen()
 	}
-
-	// Update previous buffer
-	t.previousBuffer = make([]string, len(newLines))
-	copy(t.previousBuffer, newLines)
+	
+	// Clear screen and move cursor to home position
+	t.Clear()
+	t.MoveCursorHome()
+	
+	// Simply print the content - no complex cursor tracking needed in alt screen
+	fmt.Print(content)
+	
+	lines := strings.Split(content, "\n")
+	t.previousBuffer = make([]string, len(lines))
+	copy(t.previousBuffer, lines)
 }
 
 // ClearPreviousBuffer clears the stored previous buffer (useful for manual redraws)

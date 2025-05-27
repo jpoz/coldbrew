@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	brew.InitLogging("bubbletea-textinput")
+	brew.InitLogging("brew")
 
 	p := brew.NewProgram(initialModel())
 	if err := p.Run(); err != nil {
