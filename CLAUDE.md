@@ -49,7 +49,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `Run()` - Start the Model-Update-View loop 
   - `Send(msg)` - Send message to program
   - `WithCursorHidden(bool)` - Configure cursor visibility (default: hidden)
-  - `WithRawMode(bool)` - Enable immediate character input without Enter (default: false)
+  - `WithRawMode(bool)` - Enable immediate character input without Enter (default: true)
   - **Full bubbletea command support**: `tea.Quit`, `tea.Batch`, etc. work exactly as expected
   - **Quit handling**: Responds to both `tea.Quit` commands and `tea.QuitMsg` messages automatically
   - Optional coldbrew subscriptions: `Every(duration, msgFunc)` via `ColdbrewModel` interface
@@ -90,14 +90,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Responsive Layout** - flex-grow allows components to expand and fill available space
 
 ### Input Modes
-- **Line Mode (default)** - Traditional line-buffered input requiring Enter key
-- **Raw Mode** - Immediate character input without Enter, supports:
+- **Raw Mode (default)** - Immediate character input without Enter, supports:
   - Individual character detection
   - Arrow keys and special keys (space, tab, backspace, etc.)
   - Ctrl combinations (Ctrl+C, Ctrl+D)
   - Automatic terminal state restoration
   - Graceful fallback to line mode if raw mode unavailable
-  - **Enable with**: `program.WithRawMode(true)` - Required for interactive examples
+- **Line Mode** - Traditional line-buffered input requiring Enter key
+  - **Enable with**: `program.WithRawMode(false)`
 
 ## File Organization
 - Root package contains core library components

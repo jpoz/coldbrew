@@ -50,8 +50,8 @@ func NewProgram(initialModel tea.Model) *Program {
 		quit:       make(chan struct{}),
 		ctx:        ctx,
 		cancel:     cancel,
-		hideCursor: true,  // Default to hiding cursor for TUI apps
-		rawMode:    false, // Default to line-buffered input
+		hideCursor: true, // Default to hiding cursor for TUI apps
+		rawMode:    true, // Default to raw mode for immediate input
 	}
 }
 

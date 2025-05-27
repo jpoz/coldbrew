@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +14,8 @@ import (
 )
 
 func main() {
+	brew.InitLogging("bubbletea-textinput")
+
 	p := brew.NewProgram(initialModel())
 	if err := p.Run(); err != nil {
 		log.Fatal(err)
@@ -50,6 +53,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Only log non-Enter keys to avoid confusion with Ctrl+J
+		if msg.Type != tea.KeyEnter {
+			slog.Info("key", "type", msg.Type, "key", msg.String())
+		} else {
+			slog.Info("key", "type", "KeyEnter", "key", "Enter")
+		}
+
 		switch msg.Type {
 		case tea.KeyEnter, tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
