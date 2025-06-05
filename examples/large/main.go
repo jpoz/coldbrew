@@ -14,7 +14,7 @@ import (
 func main() {
 	p := brew.NewProgram(model(5))
 	p.WithRawMode(true)
-	if err := p.Run(); err != nil {
+	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

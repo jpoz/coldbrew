@@ -80,7 +80,8 @@ func (p *Program) Send(msg Msg) {
 }
 
 // Run starts the program and blocks until it exits
-func (p *Program) Run() error {
+// Returns the final model and any error, matching bubbletea's signature
+func (p *Program) Run() (tea.Model, error) {
 	// Setup cursor visibility
 	if p.hideCursor {
 		p.terminal.HideCursor()
@@ -104,6 +105,12 @@ func (p *Program) Run() error {
 			defer p.terminalState.restore()
 		}
 	}
+
+	// Send initial window size
+	go p.checkResize()
+
+	// Start listening for window resize events
+	go p.handleResize()
 
 	// Initialize the model
 	cmd := p.model.Init()
@@ -141,14 +148,58 @@ func (p *Program) Run() error {
 			// Handle quit messages - both tea.Quit and custom QuitMsg
 			if _, isQuit := msg.(QuitMsg); isQuit {
 				p.cancel()
-				return nil
+				return p.model, nil
 			}
 			if _, isTeaQuit := msg.(tea.QuitMsg); isTeaQuit {
 				p.cancel()
-				return nil
+				return p.model, nil
 			}
 
-			// Handle batch messages
+			// Handle windowSizeMsg (internal message to trigger size check)
+			if _, isWindowSizeMsg := msg.(windowSizeMsg); isWindowSizeMsg {
+				go p.checkResize()
+				continue
+			}
+
+			// Handle enableReportFocusMsg (enable focus reporting)
+			if _, isEnableFocus := msg.(enableReportFocusMsg); isEnableFocus {
+				p.terminal.EnableReportFocus()
+				continue
+			}
+
+			// Handle bubbletea's enableReportFocusMsg (check by comparing with tea.EnableReportFocus())
+			if fmt.Sprintf("%T", msg) == fmt.Sprintf("%T", tea.EnableReportFocus()) {
+				p.terminal.EnableReportFocus()
+				continue
+			}
+
+			// Handle disableReportFocusMsg (disable focus reporting)
+			if _, isDisableFocus := msg.(disableReportFocusMsg); isDisableFocus {
+				p.terminal.DisableReportFocus()
+				continue
+			}
+
+			// Handle bubbletea's disableReportFocusMsg (check by comparing with tea.DisableReportFocus())
+			if fmt.Sprintf("%T", msg) == fmt.Sprintf("%T", tea.DisableReportFocus()) {
+				p.terminal.DisableReportFocus()
+				continue
+			}
+
+			// Handle tea.BatchMsg (bubbletea's batch commands)
+			if teaBatchMsg, isTeaBatch := msg.(tea.BatchMsg); isTeaBatch {
+				for _, cmd := range teaBatchMsg {
+					if cmd != nil {
+						go func(cmd tea.Cmd) {
+							if cmdMsg := cmd(); cmdMsg != nil {
+								p.Send(cmdMsg)
+							}
+						}(cmd)
+					}
+				}
+				continue
+			}
+
+			// Handle coldbrew BatchMsg (legacy)
 			if batchMsg, isBatch := msg.(BatchMsg); isBatch {
 				for _, batchedMsg := range batchMsg.Messages {
 					// Process each batched message synchronously
@@ -186,7 +237,7 @@ func (p *Program) Run() error {
 			p.render()
 
 		case <-p.ctx.Done():
-			return nil
+			return p.model, nil
 		}
 	}
 }
@@ -232,6 +283,39 @@ func Tick(duration time.Duration, msgFunc func(time.Time) Msg) Cmd {
 	}
 }
 
+// WindowSize creates a command that queries the terminal for its current size
+// This is compatible with bubbletea's WindowSize command
+func WindowSize() Cmd {
+	return func() Msg {
+		return windowSizeMsg{}
+	}
+}
+
+// windowSizeMsg is used internally to trigger a window size check
+type windowSizeMsg struct{}
+
+// EnableReportFocus enables terminal focus reporting
+// This is compatible with bubbletea's EnableReportFocus command
+func EnableReportFocus() Cmd {
+	return func() Msg {
+		return enableReportFocusMsg{}
+	}
+}
+
+// enableReportFocusMsg is used internally to enable focus reporting
+type enableReportFocusMsg struct{}
+
+// DisableReportFocus disables terminal focus reporting
+// This is compatible with bubbletea's DisableReportFocus command
+func DisableReportFocus() Cmd {
+	return func() Msg {
+		return disableReportFocusMsg{}
+	}
+}
+
+// disableReportFocusMsg is used internally to disable focus reporting
+type disableReportFocusMsg struct{}
+
 // startSubscriptions starts all subscriptions from the model if it supports them
 func (p *Program) startSubscriptions() {
 	// Check if model supports subscriptions
@@ -260,5 +344,35 @@ func Every(duration time.Duration, msgFunc func(time.Time) Msg) Sub {
 			}
 		}
 	}
+}
+
+// handleResize listens for terminal resize events and sends WindowSizeMsg
+func (p *Program) handleResize() {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGWINCH)
+	defer signal.Stop(sig)
+
+	for {
+		select {
+		case <-p.ctx.Done():
+			return
+		case <-sig:
+			p.checkResize()
+		}
+	}
+}
+
+// checkResize detects the current terminal size and sends a WindowSizeMsg
+func (p *Program) checkResize() {
+	size, err := p.terminal.GetSize()
+	if err != nil {
+		// Silently ignore errors (terminal may not support size detection)
+		return
+	}
+
+	p.Send(tea.WindowSizeMsg{
+		Width:  size.Width,
+		Height: size.Height,
+	})
 }
 

@@ -36,7 +36,7 @@ func main() {
 	m := model{message: "Press any key..."}
 	p := brew.NewProgram(m).WithRawMode(true)
 	
-	if err := p.Run(); err != nil {
+	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
 	

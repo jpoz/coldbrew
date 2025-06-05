@@ -67,7 +67,7 @@ func (m model) View() string {
 
 func main() {
 	p := brew.NewProgram(initialModel()).WithRawMode(true)
-	if err := p.Run(); err != nil {
+	if _, err := p.Run(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

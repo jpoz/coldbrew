@@ -90,7 +90,7 @@ func (m model) View() string {
 
 func main() {
 	p := brew.NewProgram(initialModel())
-	if err := p.Run(); err != nil {
+	if _, err := p.Run(); err != nil {
 		fmt.Println("error running program:", err)
 		os.Exit(1)
 	}

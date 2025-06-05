@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/x/term"
 )
 
 // Terminal provides rendering utilities
@@ -36,6 +38,16 @@ func (t *Terminal) ShowCursor() {
 	fmt.Print("\033[?25h")
 }
 
+// EnableReportFocus enables terminal focus reporting
+func (t *Terminal) EnableReportFocus() {
+	fmt.Print("\033[?1004h")
+}
+
+// DisableReportFocus disables terminal focus reporting
+func (t *Terminal) DisableReportFocus() {
+	fmt.Print("\033[?1004l")
+}
+
 // MoveCursor moves the cursor to a specific position (1-based coordinates)
 func (t *Terminal) MoveCursor(row, col int) {
 	fmt.Printf("\033[%d;%dH", row, col)
@@ -49,7 +61,13 @@ func (t *Terminal) MoveCursorHome() {
 
 // GetSize returns the current terminal dimensions
 func (t *Terminal) GetSize() (Size, error) {
-	// Try to get size using stty
+	// Try to get size using term.GetSize (same method as bubbletea)
+	width, height, err := term.GetSize(os.Stdout.Fd())
+	if err == nil {
+		return Size{Width: width, Height: height}, nil
+	}
+
+	// Fallback to stty if term.GetSize fails
 	cmd := exec.Command("stty", "size")
 	cmd.Stdin = os.Stdin
 	output, err := cmd.Output()
@@ -63,17 +81,17 @@ func (t *Terminal) GetSize() (Size, error) {
 		return Size{Width: 80, Height: 24}, fmt.Errorf("unexpected stty output format")
 	}
 
-	height, err := strconv.Atoi(parts[0])
+	sttyHeight, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return Size{Width: 80, Height: 24}, err
 	}
 
-	width, err := strconv.Atoi(parts[1])
+	sttyWidth, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return Size{Width: 80, Height: 24}, err
 	}
 
-	return Size{Width: width, Height: height}, nil
+	return Size{Width: sttyWidth, Height: sttyHeight}, nil
 }
 
 // RenderString renders a string directly to the terminal with differential updates
@@ -85,9 +103,28 @@ func (t *Terminal) RenderString(content string) {
 	sizeChanged := t.lastSize.Width != currentSize.Width || t.lastSize.Height != currentSize.Height
 	t.lastSize = currentSize
 	
-	// First render or size changed - initialize state
-	if t.firstRender || sizeChanged {
+	// First render - just render content from current cursor position
+	if t.firstRender {
 		t.firstRender = false
+		
+		// Render all content without clearing screen
+		for i, line := range lines {
+			if i > 0 {
+				fmt.Print("\n")
+			}
+			fmt.Print(line)
+		}
+		
+		// Update state
+		t.previousBuffer = make([]string, len(lines))
+		copy(t.previousBuffer, lines)
+		t.totalRendered = len(lines)
+		return
+	}
+	
+	// Size changed - clear screen and re-render to avoid artifacts
+	if sizeChanged {
+		fmt.Print("\033[H\033[2J") // Clear screen and go to home
 		
 		// Render all content
 		for i, line := range lines {
