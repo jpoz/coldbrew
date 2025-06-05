@@ -3,6 +3,9 @@ package brew
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -122,6 +125,14 @@ func (p *Program) Run() error {
 
 	// Start subscriptions
 	p.startSubscriptions()
+
+	// Handle interrupt signals for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		p.Send(tea.Quit())
+	}()
 
 	// Main message loop
 	for {
