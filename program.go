@@ -83,7 +83,6 @@ func (p *Program) Run() error {
 		p.terminal.HideCursor()
 		// Ensure cursor is restored on exit
 		defer func() {
-			p.terminal.ExitAltScreen()
 			p.terminal.ShowCursor()
 			// Print a final newline to position cursor properly for shell prompt
 			fmt.Print("\n")

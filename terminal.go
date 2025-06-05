@@ -12,11 +12,14 @@ import (
 type Terminal struct {
 	previousBuffer []string
 	lastSize       Size
-	altScreen      bool
+	renderStartRow int
+	renderStartCol int
+	totalRendered  int
+	firstRender    bool
 }
 
 func NewTerminal() *Terminal {
-	return &Terminal{}
+	return &Terminal{firstRender: true}
 }
 
 func (t *Terminal) Clear() {
@@ -43,21 +46,6 @@ func (t *Terminal) MoveCursorHome() {
 	fmt.Print("\033[H")
 }
 
-// EnterAltScreen enters the alternate screen buffer
-func (t *Terminal) EnterAltScreen() {
-	if !t.altScreen {
-		fmt.Print("\033[?1049h") // Enter alternate screen
-		t.altScreen = true
-	}
-}
-
-// ExitAltScreen exits the alternate screen buffer
-func (t *Terminal) ExitAltScreen() {
-	if t.altScreen {
-		fmt.Print("\033[?1049l") // Exit alternate screen
-		t.altScreen = false
-	}
-}
 
 // GetSize returns the current terminal dimensions
 func (t *Terminal) GetSize() (Size, error) {
@@ -88,23 +76,82 @@ func (t *Terminal) GetSize() (Size, error) {
 	return Size{Width: width, Height: height}, nil
 }
 
-// RenderString renders a string directly to the terminal using alternate screen buffer
+// RenderString renders a string directly to the terminal with differential updates
 func (t *Terminal) RenderString(content string) {
-	// Enter alternate screen on first render
-	if len(t.previousBuffer) == 0 {
-		t.EnterAltScreen()
+	lines := strings.Split(content, "\n")
+	
+	// Check for size changes to force full re-render
+	currentSize, _ := t.GetSize()
+	sizeChanged := t.lastSize.Width != currentSize.Width || t.lastSize.Height != currentSize.Height
+	t.lastSize = currentSize
+	
+	// First render or size changed - initialize state
+	if t.firstRender || sizeChanged {
+		t.firstRender = false
+		
+		// Render all content
+		for i, line := range lines {
+			if i > 0 {
+				fmt.Print("\n")
+			}
+			fmt.Print(line)
+		}
+		
+		// Update state
+		t.previousBuffer = make([]string, len(lines))
+		copy(t.previousBuffer, lines)
+		t.totalRendered = len(lines)
+		return
 	}
 	
-	// Clear screen and move cursor to home position
-	t.Clear()
-	t.MoveCursorHome()
+	// Find first differing line
+	firstDiff := -1
+	minLen := len(lines)
+	if len(t.previousBuffer) < minLen {
+		minLen = len(t.previousBuffer)
+	}
 	
-	// Simply print the content - no complex cursor tracking needed in alt screen
-	fmt.Print(content)
+	for i := 0; i < minLen; i++ {
+		if lines[i] != t.previousBuffer[i] {
+			firstDiff = i
+			break
+		}
+	}
 	
-	lines := strings.Split(content, "\n")
+	// If lengths differ but common lines are same, start diff at end of common
+	if firstDiff == -1 && len(lines) != len(t.previousBuffer) {
+		firstDiff = minLen
+	}
+	
+	// No changes needed
+	if firstDiff == -1 {
+		return
+	}
+	
+	// Move cursor to the first line that needs updating
+	// We need to go back up from where we currently are (end of previous render)
+	// to the first differing line
+	linesToGoBack := t.totalRendered - 1 - firstDiff
+	if linesToGoBack > 0 {
+		fmt.Printf("\033[%dA", linesToGoBack) // Move up
+	}
+	fmt.Print("\r") // Move to beginning of line
+	
+	// Clear from current position to end of screen
+	fmt.Print("\033[J")
+	
+	// Render changed lines
+	for i := firstDiff; i < len(lines); i++ {
+		if i > firstDiff {
+			fmt.Print("\n")
+		}
+		fmt.Print(lines[i])
+	}
+	
+	// Update state
 	t.previousBuffer = make([]string, len(lines))
 	copy(t.previousBuffer, lines)
+	t.totalRendered = len(lines)
 }
 
 // ClearPreviousBuffer clears the stored previous buffer (useful for manual redraws)
