@@ -1,0 +1,3 @@
+Build me a layout system for a terminal application in Go. It should be able to have flexbox layout, be able to be rendered to the terminal
+
+
