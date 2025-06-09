@@ -13,7 +13,7 @@ import (
 
 func main() {
 	p := brew.NewProgram(model(5))
-	if err := p.Run(); err != nil {
+	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

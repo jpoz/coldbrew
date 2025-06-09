@@ -2,53 +2,96 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"time"
+	"os"
+	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	brew "github.com/jpoz/coldbrew"
 )
 
-func main() {
-	p := brew.NewProgram(model(5))
-	if err := p.Run(); err != nil {
-		log.Fatal(err)
+type model struct {
+	input   textinput.Model
+	history []string
+	width   int
+	height  int
+}
+
+func initialModel() model {
+	ti := textinput.New()
+	ti.Placeholder = "Type something..."
+	ti.Focus()
+	ti.CharLimit = 256
+	ti.Width = 40
+
+	histroy := []string{}
+
+	for i := range 50 {
+		histroy = append(histroy, fmt.Sprintf("History entry %d", i+1))
+	}
+
+	return model{
+		input:   ti,
+		history: histroy,
 	}
 }
 
-type model int
-
 func (m model) Init() tea.Cmd {
-	return tick
+	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "ctrl+z":
-			return m, tea.Suspend
+		case "enter", "ctrl+j":
+			m.history = append([]string{m.input.Value()}, m.history...)
+			m.input.SetValue("")
 		}
 
-	case tickMsg:
-		m--
-		if m <= 0 {
-			return m, tea.Quit
-		}
-		return m, tick
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	}
-	return m, nil
+
+	m.input, cmd = m.input.Update(msg)
+	return m, cmd
 }
 
 func (m model) View() string {
-	return fmt.Sprintf("line 1\nline 2\nline 3\n")
+	var b strings.Builder
+
+	// History section
+	if len(m.history) == 0 {
+		b.WriteString("No entries yet\n\n")
+	} else {
+		for i := len(m.history) - 1; i >= 0; i-- {
+			b.WriteString(m.history[i] + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	// Input box with border
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Padding(0, 1).
+		Width(m.input.Width + 2)
+
+	b.WriteString(boxStyle.Render(m.input.View()))
+
+	return b.String()
 }
 
-type tickMsg time.Time
-
-func tick() tea.Msg {
-	time.Sleep(time.Second)
-	return tickMsg{}
+func main() {
+	p := brew.NewProgram(initialModel())
+	if _, err := p.Run(); err != nil {
+		fmt.Println("error running program:", err)
+		os.Exit(1)
+	}
 }

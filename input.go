@@ -26,6 +26,7 @@ const (
 	KeySpace      = tea.KeySpace
 	KeyCtrlC      = tea.KeyCtrlC
 	KeyCtrlD      = tea.KeyCtrlD
+	KeyCtrlJ      = tea.KeyCtrlJ
 	KeyF1         = tea.KeyF1
 	KeyF2         = tea.KeyF2
 	KeyF3         = tea.KeyF3
@@ -99,7 +100,9 @@ func (p *Program) detectSimpleKey(b byte) *tea.KeyMsg {
 		key = tea.Key{Type: tea.KeyCtrlC}
 	case 4: // Ctrl+D
 		key = tea.Key{Type: tea.KeyCtrlD}
-	case 13: // Enter
+	case 10: // Enter (Line Feed) - Unix systems send LF for Enter
+		key = tea.Key{Type: tea.KeyEnter}
+	case 13: // Enter (Carriage Return) - Windows systems may send CR
 		key = tea.Key{Type: tea.KeyEnter}
 	case 27: // Escape - this is simplified, real escape sequences are complex
 		key = tea.Key{Type: tea.KeyEsc}
@@ -165,7 +168,9 @@ func (p *Program) handleSimpleRawInput() {
 				key = tea.Key{Type: tea.KeyCtrlC}
 			case 4: // Ctrl+D
 				key = tea.Key{Type: tea.KeyCtrlD}
-			case 13: // Enter
+			case 10: // Enter (Line Feed) - Unix systems send LF for Enter
+				key = tea.Key{Type: tea.KeyEnter}
+			case 13: // Enter (Carriage Return) - Windows systems may send CR
 				key = tea.Key{Type: tea.KeyEnter}
 			case 27: // Escape - try to read escape sequence
 				escKey := p.readEscapeSequence()
@@ -209,6 +214,14 @@ func (p *Program) readEscapeSequence() tea.Key {
 				return tea.Key{Type: tea.KeyRight}
 			case 'D':
 				return tea.Key{Type: tea.KeyLeft}
+			case 'I':
+				// Focus gained - send FocusMsg directly to program
+				p.Send(tea.FocusMsg{})
+				return tea.Key{Type: tea.KeyEsc} // Return escape as fallback
+			case 'O':
+				// Focus lost - send BlurMsg directly to program  
+				p.Send(tea.BlurMsg{})
+				return tea.Key{Type: tea.KeyEsc} // Return escape as fallback
 			}
 		}
 		// Try to read one more character
@@ -223,6 +236,14 @@ func (p *Program) readEscapeSequence() tea.Key {
 				return tea.Key{Type: tea.KeyRight}
 			case 'D':
 				return tea.Key{Type: tea.KeyLeft}
+			case 'I':
+				// Focus gained - send FocusMsg directly to program
+				p.Send(tea.FocusMsg{})
+				return tea.Key{Type: tea.KeyEsc} // Return escape as fallback
+			case 'O':
+				// Focus lost - send BlurMsg directly to program
+				p.Send(tea.BlurMsg{})
+				return tea.Key{Type: tea.KeyEsc} // Return escape as fallback
 			}
 		}
 	}
